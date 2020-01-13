@@ -68,23 +68,27 @@
           }
         };
 
-        WidgetEvent.setAddedEventToLocalStorage = function (eventId) {
-          var addedEvents = [];
-          addedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
+        WidgetEvent.setAddedEventToLocalStorage = function (event) {
+          //param - event looks like this: { UID: string, startDate: number }
+          var addedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
           if (!addedEvents) {
             addedEvents = [];
           }
-          addedEvents.push(eventId);
+          addedEvents.push(event);
           localStorage.setItem('localAddedEventsFeed', JSON.stringify(addedEvents));
         };
 
-        WidgetEvent.getAddedEventToLocalStorage = function (eventId) {
-          var localStorageSavedEvents = [];
-          localStorageSavedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
-          if (!localStorageSavedEvents) {
-            localStorageSavedEvents = [];
+        WidgetEvent.getAddedEventToLocalStorage = function (event) {
+          //param - event looks like this: { UID: string, startDate: number }
+          var localStorageSavedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
+          if(!localStorageSavedEvents){
+            return -1
           }
-          return localStorageSavedEvents.indexOf(eventId);
+          return localStorageSavedEvents.findIndex(storageEvent => (
+            typeof storageEvent === 'object' &&
+            storageEvent.startDate === event.startDate &&
+            storageEvent.UID === event.UID
+          ));
         };
 
         WidgetEvent.addEventsToCalendar = function (event) {
@@ -100,13 +104,18 @@
           }
           else {
             eventEndDate = new Date(event.endDate);
+            if (eventEndDate < eventStartDate) {
+              eventEndDate.setFullYear(eventStartDate.getFullYear());
+              eventEndDate.setMonth(eventStartDate.getMonth());
+              eventEndDate.setDate(eventStartDate.getDate());
+            }
           }
           /*Add to calendar event will add here*/
 
-          if (WidgetEvent.getAddedEventToLocalStorage(event.UID) != -1) {
+          if (WidgetEvent.getAddedEventToLocalStorage({ UID: event.UID, startDate: event.startDate }) != -1) {
             alert("Event already added in calendar");
           }
-          if (buildfire.device && buildfire.device.calendar && WidgetEvent.getAddedEventToLocalStorage(event.UID) == -1) {
+          if (buildfire.device && buildfire.device.calendar && WidgetEvent.getAddedEventToLocalStorage({ UID: event.UID, startDate: event.startDate }) == -1) {
             buildfire.device.calendar.addEvent(
               {
                 title: event.SUMMARY
@@ -132,7 +141,7 @@
                   console.log("******************" + err);
                 else {
                   alert("Event added to calendar");
-                  WidgetEvent.setAddedEventToLocalStorage(event.UID);
+                  WidgetEvent.setAddedEventToLocalStorage({ UID: event.UID, startDate: event.startDate });
                   console.log('worked ' + JSON.stringify(result));
                   $scope.$digest();
                 }

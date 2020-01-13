@@ -454,21 +454,27 @@
               toggle ? WidgetFeed.swiped[i] = true : WidgetFeed.swiped[i] = false;
           };
 
-          WidgetFeed.setAddedEventToLocalStorage= function(eventId){
-              var addedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
-              if(!addedEvents){
-                  addedEvents=[];
-              }
-              addedEvents.push(eventId);
-              localStorage.setItem('localAddedEventsFeed', JSON.stringify(addedEvents));
+          WidgetFeed.setAddedEventToLocalStorage= function(event){
+            //param - event looks like this: { UID: string, startDate: number }
+            var addedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
+            if(!addedEvents){
+                addedEvents=[];
+            }
+            addedEvents.push(event);
+            localStorage.setItem('localAddedEventsFeed', JSON.stringify(addedEvents));
           };
 
-          WidgetFeed.getAddedEventToLocalStorage = function(eventId){
-              var localStorageSavedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
-              if(!localStorageSavedEvents){
-                  localStorageSavedEvents=[];
-              }
-              return localStorageSavedEvents.indexOf(eventId);
+          WidgetFeed.getAddedEventToLocalStorage = function(event){
+            //param - event looks like this: { UID: string, startDate: number }
+            var localStorageSavedEvents = JSON.parse(localStorage.getItem('localAddedEventsFeed'));
+            if(!localStorageSavedEvents){
+              return -1
+            }
+            return localStorageSavedEvents.findIndex(storageEvent => (
+              typeof storageEvent === 'object' &&
+              storageEvent.startDate === event.startDate &&
+              storageEvent.UID === event.UID
+            ));
           };
 
           /*This method is called when we click to add an event to native calendar*/
@@ -482,17 +488,22 @@
               if(!event.endDate){
                   eventEndDate = new Date(event.startDate)
               } else {
-                  eventEndDate = new Date(event.endDate);
+                eventEndDate = new Date(event.endDate);
+                if (eventEndDate < eventStartDate) {
+                  eventEndDate.setFullYear(eventStartDate.getFullYear());
+                  eventEndDate.setMonth(eventStartDate.getMonth());
+                  eventEndDate.setDate(eventStartDate.getDate());
+                }
               }
               console.log("---------------------",eventStartDate, eventEndDate, event);
               /*Add to calendar event will add here*/
 
-              if(WidgetFeed.getAddedEventToLocalStorage(event.UID)!=-1){
+              if(WidgetFeed.getAddedEventToLocalStorage({ UID: event.UID, startDate: event.startDate })!=-1){
                   alert("Event already added in calendar");
               }
               console.log("inCal3eventFeed:", eventEndDate, event);
-              if (buildfire.device && buildfire.device.calendar && WidgetFeed.getAddedEventToLocalStorage(event.UID)==-1) {
-                  WidgetFeed.setAddedEventToLocalStorage(event.UID);
+              if (buildfire.device && buildfire.device.calendar && WidgetFeed.getAddedEventToLocalStorage({ UID: event.UID, startDate: event.startDate })==-1) {
+                  WidgetFeed.setAddedEventToLocalStorage({ UID: event.UID, startDate: event.startDate });
                   buildfire.device.calendar.addEvent(
                       {
                           title: event.SUMMARY
@@ -512,7 +523,7 @@
                           else {
                               WidgetFeed.swiped[i] = false;
                               console.log('worked ' + JSON.stringify(result));
-                              WidgetFeed.setAddedEventToLocalStorage(event.UID);
+                              WidgetFeed.setAddedEventToLocalStorage({ UID: event.UID, startDate: event.startDate });
                               alert("Event added to calendar");
                               $scope.$digest();
                           }
